@@ -78,49 +78,61 @@
             gap: 10px;
         }
 
-        /* ===== FIX: COMPACT CENTERED CAMERA ===== */
+        /* ===== FIX: CENTERED SCANNER BOX ===== */
         #reader {
             width: 100%;
-            /* 1. Fixed height so it's not a huge portrait column */
+            /* Fixed height for compact view */
             height: 300px; 
             position: relative;
             background: #000;
             border-radius: 0 0 15px 15px;
             overflow: hidden;
+            /* Flexbox used to force content centering */
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        /* 2. Make sure the scan region (wrapper) fills the container */
+        /* 1. Ensure the internal scan region fills the parent */
         #reader__scan_region {
             width: 100% !important;
             height: 100% !important;
-            position: relative;
+            position: relative !important;
+            /* Flex centering for children inside */
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
         }
 
-        /* 3. Style the video to fill the box nicely (Crop to fit) */
+        /* 2. Video fills the area (background) */
         #reader video {
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important; /* Fills the area without stretching */
+            object-fit: cover !important;
             position: absolute;
             top: 0;
             left: 0;
+            z-index: 1;
         }
 
-        /* 4. Center the Focus Box (QR Box) */
+        /* 3. FORCE the Focus Box (Image) to the Middle */
+        /* This overrides the library's 'top/left' calculations */
         #reader__scan_region img {
             position: absolute !important;
-            /* Center it horizontally and vertically */
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important;
+            z-index: 10;
+            /* Optional: subtle shadow so it's visible on dark backgrounds */
+            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.3); 
             border-radius: 10px;
         }
 
-        /* Hide extra clutter (buttons/links) */
+        /* Hide extra buttons/dashboard */
         #reader__dashboard {
             display: none !important;
         }
-
+        
         /* Style the 'Start' button when camera is off */
         #reader button {
             position: absolute;
@@ -135,7 +147,7 @@
             font-size: 1rem !important;
             width: auto !important;
             cursor: pointer;
-            z-index: 10;
+            z-index: 20;
         }
 
         /* Status Box */
@@ -307,7 +319,7 @@
             "reader", 
             { 
                 fps: 10, 
-                qrbox: { width: 280, height: 150 }, // Rectangular focus
+                qrbox: { width: 280, height: 150 }, 
                 aspectRatio: 1.777778,
                 supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA] 
             }
