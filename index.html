@@ -78,46 +78,50 @@
             gap: 10px;
         }
 
-        /* ===== FIX: CAMERA SIZE & SHAPE ===== */
+        /* ===== FIX: COMPACT CENTERED CAMERA ===== */
         #reader {
             width: 100%;
-            /* Force a shorter, landscape-style height */
-            height: 280px; 
+            /* 1. Fixed height so it's not a huge portrait column */
+            height: 300px; 
             position: relative;
+            background: #000;
             border-radius: 0 0 15px 15px;
             overflow: hidden;
-            background: #000;
         }
 
-        /* Force the video to fill the box nicely (Crop instead of stretch) */
+        /* 2. Make sure the scan region (wrapper) fills the container */
+        #reader__scan_region {
+            width: 100% !important;
+            height: 100% !important;
+            position: relative;
+        }
+
+        /* 3. Style the video to fill the box nicely (Crop to fit) */
         #reader video {
             width: 100% !important;
             height: 100% !important;
-            object-fit: cover !important; 
+            object-fit: cover !important; /* Fills the area without stretching */
             position: absolute;
             top: 0;
             left: 0;
         }
 
-        /* Center the scan region (the square focus box) */
-        #reader__scan_region {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        /* 4. Center the Focus Box (QR Box) */
+        #reader__scan_region img {
+            position: absolute !important;
+            /* Center it horizontally and vertically */
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            border-radius: 10px;
         }
 
-        /* Hide unnecessary buttons */
-        #reader__dashboard_section_csr, 
-        #reader__dashboard_section_swaplink,
-        #reader__camera_permission_button,
+        /* Hide extra clutter (buttons/links) */
         #reader__dashboard {
             display: none !important;
         }
-        
-        /* Show ONLY the 'Start Scanning' button initially if camera is off */
-        /* This is a hack to show the start button but hide the rest of the clutter */
+
+        /* Style the 'Start' button when camera is off */
         #reader button {
             position: absolute;
             top: 50%;
@@ -131,6 +135,7 @@
             font-size: 1rem !important;
             width: auto !important;
             cursor: pointer;
+            z-index: 10;
         }
 
         /* Status Box */
@@ -198,7 +203,7 @@
     </div>
 
     <script>
-        // ===== SOUNDS (Web Audio API) =====
+        // ===== SOUNDS =====
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -249,7 +254,6 @@
             statusBox.style.animation = null;
             statusBox.className = 'status-' + type;
             statusBox.innerText = message;
-            // Auto hide success after 3 seconds
             if(type === 'success') setTimeout(() => { statusBox.style.display = 'none'; }, 3000);
         }
 
@@ -290,21 +294,20 @@
         let isProcessing = false;
 
         function onScanSuccess(text) {
-            if(isProcessing) return; // Ignore if busy
-            isProcessing = true;     // Lock
+            if(isProcessing) return;
+            isProcessing = true;
             
             processScan(text).finally(() => {
-                // FIX: Increased to 2.0 seconds so it's not too fast
                 setTimeout(() => { isProcessing = false; }, 2000);
             });
         }
 
-        // Config: Camera only
+        // Config: Rectangular Box 280x150
         const scanner = new Html5QrcodeScanner(
             "reader", 
             { 
                 fps: 10, 
-                qrbox: { width: 250, height: 150 }, 
+                qrbox: { width: 280, height: 150 }, // Rectangular focus
                 aspectRatio: 1.777778,
                 supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA] 
             }
