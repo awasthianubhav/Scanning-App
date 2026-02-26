@@ -114,7 +114,7 @@
             cursor: pointer;
         }
 
-        /* Status Box */
+        /* Status Box - Updated Styles */
         #status-box {
             padding: 20px;
             text-align: center;
@@ -122,12 +122,14 @@
             border-radius: 10px;
             margin-bottom: 20px;
             font-weight: bold;
-            animation: fadeIn 0.3s;
+            /* Animation definition */
+            animation: slideIn 0.4s ease-out forwards;
         }
 
-        .status-success { background: #e8f5e9; color: var(--success); border: 1px solid var(--success); }
-        .status-duplicate { background: #fff3e0; color: #e65100; border: 1px solid #e65100; }
-        .status-error { background: #ffebee; color: var(--danger); border: 1px solid var(--danger); }
+        /* Custom Colors for Status */
+        .status-success { background: #e8f5e9; color: var(--success); border-left: 6px solid var(--success); }
+        .status-duplicate { background: #fff3e0; color: #e65100; border: 1px solid #e65100; border-left: 6px solid #e65100; }
+        .status-error { background: #ffebee; color: var(--danger); border-left: 6px solid var(--danger); }
 
         /* Dashboard List */
         .order-list {
@@ -170,7 +172,11 @@
             margin-top: 4px;
         }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Animation Keyframes */
+        @keyframes slideIn { 
+            from { opacity: 0; transform: translateY(-20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
     </style>
 </head>
 <body>
@@ -209,18 +215,60 @@
     </div>
 
     <script>
-        // ===== AUDIO EFFECTS (Base64 Embedded) =====
-        // We embed sounds so no external files are needed
-        const SOUNDS = {
-            success: new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkY2DgH18foOEhIWAfnx7e3x+gIKEhYaFg4B+fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8foGDhIWFhYB9fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8foGDhIWFhYB9fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8fn+AgoSFhIWAfnx7e3x+f4CChIWEhYB+fHt7fH5/gIKEhYSFgH58e3t8fn+AgoSFhIWAfnx7e3x+f4CChIWEhYB+fHt7fH5/gIKEhYSFgH58e3t8fn+Ag4SFhIWBfXx7e3x+f4GDhIWEhYF9fHt7fH5/gYOEhYSFgX18e3t8fn+Bg4SFhIWBfXx7e3x+f4GDhIWEhYF9fHt7fH5/gYOEhYSFgX18e3t8fn+Bg4SFhIWBfXx7e3x+f4GDhIWEhYF9fHt7fH5/gYOEhYSFgX18e3t8fn+Bg4SFhIWBfXx7e3t8foGDhIWFhYB9fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8foGDhIWFhYB9fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8foGDhIWFhYB9fHt7fH6Ag4SFhIWAfnx7e3x+gIOEhYSFgH58e3t8fn+AgoSFhIWAfnx7e3x+f4CChIWEhYB+fHt7fH5/gIKEhYSFgH58e3t8fn+AgoSFhIWAfnx7e3x+f4CChIWEhYB+fHt7fH5/gIKEhYSEgH58e3t8fn+AgoSFhISAfnx7e3x+f4CCg4SEg4B+fHt7fH5/gIKDhISDgH58e3t8fn+AgoOEhIOAfnx7e3x+f4CCg4SEg4B+fHt7fH5/gIKDhISDgH58e3t8fn+AgoOEhIOAfnx7e3x+f4CCg4SEg4B+fHt7fH5/gIKDhISDgH58e3t8fX+Ag4OEg4OAfXx7e3x9f4CDg4SDg4B9fHt7fH1/gIODhIODgH18e3t8fX+Ag4OEg4OAfXx7e3x9f4CDg4SDg4B9fHt7fH1/gIODhIODgH18e3t8fX+Ag4OEg4OAfXx7e3x9f4CDg4SDg4B9fHt7fH1/gIODhIODgH18e3t8fX+Ag4OEg4OAfXx7e3x9f4CDg4SDg4B9fHt7fH1/gA=="),
-            duplicate: new Audio("data:audio/wav;base64,UklGRl4FAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YToFAACAgICAgICAgICAgICAgICAgICAgHx8fHx8fHx8fHx8fHx8fHx8fICAgICAgICAgICAgICAgICAgICAfHx8fHx8fHx8fHx8fHx8fHx8gICAgICAgICAgICAgICAgICAgIB8fHx8fHx8fHx8fHx8fHx8fHyAgICAgICAgICAgICAgICAgICAgHx8fHx8fHx8fHx8fHx8fHx8fICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=="),
-            error: new Audio("data:audio/wav;base64,UklGRl4FAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YToFAACAgICAgICAgICAgICAgICAgICAgIB/f39/f39/f39/f39/f39/f3+AgICAgICAgICAgICAgICAgICAgIB/f39/f39/f39/f39/f39/f3+AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAf39/f39/f39/f39/f39/f39/gICAgICAgICAgICAgICAgICAgICAf39/f39/f39/f39/f39/f39/gICAgICAgICAgICAgICAgICAgICAgH9/f39/f39/f39/f39/f39/f4CAgICAgICAgICAgICAgICAgICAgIB/f39/f39/f39/f39/f39/f3+AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==")
-        };
+        // ===== WEB AUDIO API SOUND EFFECTS =====
+        // No external files needed, generated purely in JS
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function playSound(type) {
-            if (SOUNDS[type]) {
-                SOUNDS[type].currentTime = 0;
-                SOUNDS[type].play().catch(e => console.log("Audio wait", e));
+            // Resume audio context if it's suspended (mobile browser policy)
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+
+            if (type === 'success') {
+                // Pleasant Rising Tone (Major Chord feel)
+                osc.type = 'sine';
+                // Start at C5, go to E5
+                osc.frequency.setValueAtTime(523.25, now); 
+                osc.frequency.linearRampToValueAtTime(659.25, now + 0.1);
+                osc.frequency.linearRampToValueAtTime(783.99, now + 0.2); // G5
+                
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } 
+            else if (type === 'duplicate') {
+                // "Ting-Tong" (High-Low Ding)
+                osc.type = 'sine';
+                // Ting (High)
+                osc.frequency.setValueAtTime(880, now); 
+                // Tong (Lower) after 0.15s
+                osc.frequency.setValueAtTime(587.33, now + 0.15); 
+                
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } 
+            else if (type === 'error') {
+                // Harsh & Loud (Buzzing Alarm)
+                osc.type = 'sawtooth'; // Harsh waveform
+                osc.frequency.setValueAtTime(150, now); // Low frequency
+                osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+                
+                gainNode.gain.setValueAtTime(0.3, now); // Louder volume
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                
+                osc.start(now);
+                osc.stop(now + 0.5);
             }
         }
 
@@ -235,7 +283,7 @@
         function showStatus(message, type) {
             statusBox.style.display = 'block';
             
-            // This forces the animation to restart so the visual change is obvious
+            // This forces the animation to restart
             statusBox.style.animation = 'none';
             statusBox.offsetHeight; /* trigger reflow */
             statusBox.style.animation = null;
@@ -254,7 +302,7 @@
             const { data, error } = await db
                 .from("orders")
                 .select("order_id, total_boxes, scanned_boxes, status")
-                .order("updated_at", { ascending: false }) // Assumes you have a timestamp
+                .order("updated_at", { ascending: false })
                 .limit(5);
 
             const list = document.getElementById('order-list');
@@ -313,7 +361,7 @@
 
         scanner.render(onScanSuccess);
 
-        // ===== MAIN LOGIC =====
+        // ===== MAIN LOGIC (Kept your original working logic) =====
         async function processScan(code) {
             // QR must be ORD001-1 format
             const parts = code.split("-");
@@ -325,7 +373,7 @@
 
             const orderId = parts[0];
 
-            // 1. Check if Order Exists (New Feature)
+            // 1. Check if Order Exists
             const { data: orderCheck, error: orderError } = await db
                 .from("orders")
                 .select("order_id")
