@@ -19,8 +19,7 @@
     
     <style>
         :root {
-            --primary: #1a237e; /* Deep Blue */
-            --accent: #ffab00;  /* Amber */
+            --primary: #1a237e;
             --bg: #f5f5f5;
             --success: #2e7d32;
             --danger: #c62828;
@@ -49,25 +48,15 @@
             z-index: 100;
         }
 
-        .app-header h1 {
-            margin: 0;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .app-header p {
-            margin: 5px 0 0;
-            opacity: 0.8;
-            font-size: 0.9rem;
-        }
+        .app-header h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+        .app-header p { margin: 5px 0 0; opacity: 0.8; font-size: 0.9rem; }
 
         /* Main Container */
         .container {
             padding: 15px;
             max-width: 600px;
             margin: 0 auto;
-            padding-bottom: 100px; /* Space for bottom nav */
+            padding-bottom: 100px;
         }
 
         /* Scanner Card */
@@ -89,32 +78,34 @@
             gap: 10px;
         }
 
+        /* ===== SCANNER UI FIXES ===== */
         #reader {
             width: 100%;
+            /* Constrain height so it doesn't fill screen */
+            max-height: 350px; 
             border-radius: 0 0 15px 15px;
+            overflow: hidden;
         }
-        
-        /* Force scanner region shape */
-        #reader__scan_region {
-            background: white;
+
+        /* Hide the "Scan from File" or extra buttons */
+        #reader__dashboard_section_csr, 
+        #reader__dashboard_section_swaplink,
+        #reader__camera_permission_button {
+            display: none !important;
         }
-        
-        #reader__dashboard {
-            padding: 10px !important;
-        }
-        
-        #reader button, .btn {
+
+        /* Clean up the scanner start button */
+        #reader button {
             background: var(--primary) !important;
             color: white !important;
             border: none !important;
-            padding: 12px 24px !important;
-            border-radius: 8px !important;
+            padding: 12px !important;
+            border-radius: 0 !important; /* Flat bottom for card */
+            width: 100% !important;
             font-size: 1rem !important;
-            width: auto !important;
-            cursor: pointer;
         }
 
-        /* Status Box - Updated Styles */
+        /* Status Box */
         #status-box {
             padding: 20px;
             text-align: center;
@@ -122,22 +113,15 @@
             border-radius: 10px;
             margin-bottom: 20px;
             font-weight: bold;
-            /* Animation definition */
-            animation: slideIn 0.4s ease-out forwards;
+            animation: slideIn 0.3s ease-out forwards;
         }
 
-        /* Custom Colors for Status */
         .status-success { background: #e8f5e9; color: var(--success); border-left: 6px solid var(--success); }
-        .status-duplicate { background: #fff3e0; color: #e65100; border: 1px solid #e65100; border-left: 6px solid #e65100; }
+        .status-duplicate { background: #fff3e0; color: #e65100; border-left: 6px solid #e65100; }
         .status-error { background: #ffebee; color: var(--danger); border-left: 6px solid var(--danger); }
 
         /* Dashboard List */
-        .order-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
+        .order-list { list-style: none; padding: 0; margin: 0; }
         .order-item {
             display: flex;
             justify-content: space-between;
@@ -145,38 +129,15 @@
             padding: 15px;
             border-bottom: 1px solid #eee;
         }
-
         .order-item:last-child { border-bottom: none; }
-
         .order-id { font-weight: bold; font-size: 1rem; }
         
-        .progress-container { width: 100%; margin-top: 5px; }
+        .progress-bar { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 8px; width: 100%; }
+        .progress-fill { height: 100%; background: var(--success); transition: width 0.5s; }
         
-        .progress-bar {
-            height: 6px;
-            background: #eee;
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: var(--success);
-            transition: width 0.3s;
-        }
+        .meta-text { font-size: 0.85rem; color: #666; margin-top: 4px; }
 
-        .meta-text {
-            font-size: 0.85rem;
-            color: #666;
-            margin-top: 4px;
-        }
-
-        /* Animation Keyframes */
-        @keyframes slideIn { 
-            from { opacity: 0; transform: translateY(-20px); } 
-            to { opacity: 1; transform: translateY(0); } 
-        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -187,11 +148,8 @@
     </header>
 
     <div class="container">
-        
-        <!-- Status Message -->
         <div id="status-box"></div>
 
-        <!-- Scanner Section -->
         <div class="card">
             <div class="card-header">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -200,79 +158,58 @@
             <div id="reader"></div>
         </div>
 
-        <!-- Recent Orders Section -->
         <div class="card">
             <div class="card-header">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
                 Recent Orders
             </div>
             <ul class="order-list" id="order-list">
-                <!-- Populated by JS -->
                 <li class="order-item" style="justify-content:center; color:#999;">Loading...</li>
             </ul>
         </div>
-
     </div>
 
     <script>
-        // ===== WEB AUDIO API SOUND EFFECTS =====
-        // No external files needed, generated purely in JS
+        // ===== SOUNDS (Web Audio API) =====
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
         function playSound(type) {
-            // Resume audio context if it's suspended (mobile browser policy)
             if (audioCtx.state === 'suspended') audioCtx.resume();
-
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-            
             const now = audioCtx.currentTime;
 
             if (type === 'success') {
-                // Pleasant Rising Tone (Major Chord feel)
+                // Pleasant Rising Tone
                 osc.type = 'sine';
-                // Start at C5, go to E5
                 osc.frequency.setValueAtTime(523.25, now); 
-                osc.frequency.linearRampToValueAtTime(659.25, now + 0.1);
-                osc.frequency.linearRampToValueAtTime(783.99, now + 0.2); // G5
-                
+                osc.frequency.linearRampToValueAtTime(783.99, now + 0.2);
                 gainNode.gain.setValueAtTime(0.2, now);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-                
-                osc.start(now);
-                osc.stop(now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
             } 
             else if (type === 'duplicate') {
-                // "Ting-Tong" (High-Low Ding)
+                // Ting-Tong
                 osc.type = 'sine';
-                // Ting (High)
                 osc.frequency.setValueAtTime(880, now); 
-                // Tong (Lower) after 0.15s
                 osc.frequency.setValueAtTime(587.33, now + 0.15); 
-                
                 gainNode.gain.setValueAtTime(0.2, now);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-                
-                osc.start(now);
-                osc.stop(now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
             } 
             else if (type === 'error') {
-                // Harsh & Loud (Buzzing Alarm)
-                osc.type = 'sawtooth'; // Harsh waveform
-                osc.frequency.setValueAtTime(150, now); // Low frequency
+                // Harsh & Loud
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
                 osc.frequency.linearRampToValueAtTime(100, now + 0.3);
-                
-                gainNode.gain.setValueAtTime(0.3, now); // Louder volume
+                gainNode.gain.setValueAtTime(0.3, now);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-                
-                osc.start(now);
-                osc.stop(now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
             }
         }
 
-        // ===== SUPABASE CONNECTION =====
+        // ===== SUPABASE =====
         const SUPABASE_URL = "https://ukqbbznhnzoooirdnior.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcWJiem5obnpvb29pcmRuaW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMzE1MDIsImV4cCI6MjA4NzcwNzUwMn0.jcx4L_ZlOHfkGHUfelgzW1kLMXZxKSUsHeSN5aVcssg";
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -282,22 +219,15 @@
         
         function showStatus(message, type) {
             statusBox.style.display = 'block';
-            
-            // This forces the animation to restart
             statusBox.style.animation = 'none';
-            statusBox.offsetHeight; /* trigger reflow */
+            statusBox.offsetHeight;
             statusBox.style.animation = null;
-
             statusBox.className = 'status-' + type;
             statusBox.innerText = message;
-            
-            // Auto hide success messages
-            if(type === 'success') {
-                setTimeout(() => { statusBox.style.display = 'none'; }, 3000);
-            }
+            if(type === 'success') setTimeout(() => { statusBox.style.display = 'none'; }, 3000);
         }
 
-        // ===== DASHBOARD LOADER =====
+        // ===== DASHBOARD =====
         async function loadDashboard() {
             const { data, error } = await db
                 .from("orders")
@@ -306,150 +236,93 @@
                 .limit(5);
 
             const list = document.getElementById('order-list');
-            
-            if (error || !data) {
-                list.innerHTML = '<li class="order-item" style="justify-content:center; color:#999;">Error loading data</li>';
-                return;
-            }
-
-            if(data.length === 0) {
-                list.innerHTML = '<li class="order-item" style="justify-content:center; color:#999;">No orders found</li>';
-                return;
-            }
+            if (error || !data) { list.innerHTML = '<li class="order-item" style="justify-content:center; color:#999;">Error</li>'; return; }
+            if(data.length === 0) { list.innerHTML = '<li class="order-item" style="justify-content:center; color:#999;">No orders</li>'; return; }
 
             list.innerHTML = '';
-            data.forEach(order => {
-                const count = order.scanned_boxes || 0;
-                const total = order.total_boxes || 1;
+            data.forEach(o => {
+                const count = o.scanned_boxes || 0;
+                const total = o.total_boxes || 1;
                 const percent = Math.round((count / total) * 100);
-                
                 const li = document.createElement('li');
                 li.className = 'order-item';
                 li.innerHTML = `
                     <div style="flex:1">
-                        <div class="order-id">${order.order_id}</div>
-                        <div class="progress-container">
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${percent}%"></div>
-                            </div>
-                        </div>
+                        <div class="order-id">${o.order_id}</div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: ${percent}%"></div></div>
                     </div>
                     <div style="text-align:right">
-                        <div style="font-weight:bold; color:${order.status === 'completed' ? 'var(--success)' : 'var(--text)'}">
-                            ${count} / ${total}
-                        </div>
-                        <div class="meta-text">${order.status.toUpperCase()}</div>
+                        <div style="font-weight:bold; color:${o.status === 'completed' ? 'var(--success)' : 'var(--text)'}">${count}/${total}</div>
+                        <div class="meta-text">${o.status.toUpperCase()}</div>
                     </div>
                 `;
                 list.appendChild(li);
             });
         }
 
-        // ===== SCANNER SETUP =====
+        // ===== SCANNER =====
+        let isProcessing = false;
+
         function onScanSuccess(text) {
-            processScan(text);
+            if(isProcessing) return; // Ignore if busy
+            isProcessing = true;     // Lock
+            
+            processScan(text).finally(() => {
+                // Unlock after 1.5 seconds
+                setTimeout(() => { isProcessing = false; }, 1500);
+            });
         }
 
+        // Config: Only camera, no file scan
         const scanner = new Html5QrcodeScanner(
-            "reader",
+            "reader", 
             { 
                 fps: 10, 
-                qrbox: { width: 280, height: 180 }, // Rectangular shape
-                aspectRatio: 1.777778 
+                qrbox: { width: 250, height: 150 }, 
+                aspectRatio: 1.777778,
+                // This tries to hide the "Scan from File" link automatically
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA] 
             }
         );
-
         scanner.render(onScanSuccess);
 
-        // ===== MAIN LOGIC (Kept your original working logic) =====
+        // ===== MAIN LOGIC =====
         async function processScan(code) {
-            // QR must be ORD001-1 format
             const parts = code.split("-");
-            if (parts.length < 2) {
-                playSound('error');
-                showStatus("Invalid Code Format", "error");
-                return;
-            }
+            if (parts.length < 2) { playSound('error'); showStatus("Invalid Format", "error"); return; }
 
             const orderId = parts[0];
 
-            // 1. Check if Order Exists
-            const { data: orderCheck, error: orderError } = await db
-                .from("orders")
-                .select("order_id")
-                .eq("order_id", orderId)
-                .single();
-
-            if (!orderCheck) {
-                playSound('error');
-                showStatus(`Order ${orderId} not found!`, "error");
-                return;
-            }
+            // 1. Check Order Exists
+            const { data: orderCheck } = await db.from("orders").select("order_id").eq("order_id", orderId).single();
+            if (!orderCheck) { playSound('error'); showStatus(`Order ${orderId} not found`, "error"); return; }
 
             // 2. Duplicate Check
-            const { data: existing } = await db
-                .from("scans")
-                .select("*")
-                .eq("box_code", code);
-
-            if (existing.length) {
-                playSound('duplicate');
-                showStatus("Duplicate Scan Detected", "duplicate");
-                return;
-            }
+            const { data: existing } = await db.from("scans").select("id").eq("box_code", code);
+            if (existing.length) { playSound('duplicate'); showStatus("Duplicate Detected", "duplicate"); return; }
 
             // 3. Insert Scan
-            const { error: insertError } = await db.from("scans").insert([
-                { order_id: orderId, box_code: code }
-            ]);
+            const { error: insertError } = await db.from("scans").insert([{ order_id: orderId, box_code: code }]);
+            if (insertError) { playSound('error'); showStatus("DB Error", "error"); return; }
 
-            if (insertError) {
-                playSound('error');
-                showStatus("Database Error", "error");
-                return;
-            }
-
-            // 4. Count scans
-            const { count } = await db
-                .from("scans")
-                .select("*", { count: "exact", head: true })
-                .eq("order_id", orderId);
-
-            // 5. Get total boxes & Update Status
-            const { data: order } = await db
-                .from("orders")
-                .select("total_boxes")
-                .eq("order_id", orderId)
-                .single();
-
+            // 4. Update Count
+            const { count } = await db.from("scans").select("*", { count: "exact", head: true }).eq("order_id", orderId);
+            const { data: order } = await db.from("orders").select("total_boxes").eq("order_id", orderId).single();
+            
             let status = "pending";
-            let total = order ? order.total_boxes : 0;
-
+            const total = order ? order.total_boxes : 0;
             if (count === total) status = "completed";
 
-            await db
-                .from("orders")
-                .update({
-                    scanned_boxes: count,
-                    status: status
-                })
-                .eq("order_id", orderId);
+            await db.from("orders").update({ scanned_boxes: count, status: status }).eq("order_id", orderId);
 
-            // Success Feedback
+            // 5. Success
             playSound('success');
-            showStatus(`Success! Box ${count}/${total} scanned.`, "success");
-            
-            // Refresh Dashboard
+            showStatus(`Success! Box ${count}/${total}`, "success");
             loadDashboard();
         }
 
-        // Initialize Dashboard on Load
         loadDashboard();
-
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
-        }
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
     </script>
 </body>
 </html>
