@@ -258,7 +258,7 @@
         // ===== NEW: LOAD RECENT SCANS =====
 async function loadLast5rders() {
     const { data, error } = await db
-        .from("orders")
+        .from("scans")
         .select("order_id, total_boxes, scanned_boxes")
         .order("last_scanned_at", { ascending: false })
         .limit(5);
@@ -354,4 +354,5 @@ async function loadLast5rders() {
     </script>
 </body>
 </html>
+
 
