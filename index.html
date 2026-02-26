@@ -36,7 +36,16 @@
         .status-full { background: #e3f2fd; color: var(--primary); border-left: 6px solid var(--primary); }
 
         .order-list { list-style: none; padding: 0; margin: 0; }
-        .order-item { display: flex; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #eee; }
+        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; }
+        .order-item:last-child { border-bottom: none; }
+        
+        .order-info { flex: 1; }
+        .order-id { font-weight: 700; font-size: 1.1rem; }
+        .order-status { font-size: 0.8rem; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-top: 4px; color: white; }
+        .status-pending { background: #9e9e9e; }
+        .status-partial { background: var(--warning); }
+        .status-completed { background: var(--success); }
+
         .progress-bar { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 8px; width: 100%; }
         .progress-fill { height: 100%; background: var(--success); transition: width 0.5s; }
         
@@ -47,7 +56,7 @@
 
     <header class="app-header">
         <h1>TWF Flours</h1>
-        <p>Reliable Dispatch System</p>
+        <p>Dispatch System</p>
     </header>
 
     <div class="container">
@@ -56,14 +65,14 @@
         <div class="card">
             <div style="padding:10px 20px; font-weight:bold; color:var(--primary); border-bottom:1px solid #eee;">Scan / Input</div>
             <div class="input-group">
-                <input type="text" id="manual-code" placeholder="ORD001-1" />
+                <input type="text" id="manual-code" placeholder="Enter Code (e.g. ORD001-1)" />
                 <button onclick="handleManualSubmit()">ADD</button>
             </div>
             <div id="reader"></div>
         </div>
 
         <div class="card">
-            <div style="padding:10px 20px; font-weight:bold; color:var(--primary); border-bottom:1px solid #eee;">Recent Orders (Live Count)</div>
+            <div style="padding:10px 20px; font-weight:bold; color:var(--primary); border-bottom:1px solid #eee;">Recent Orders</div>
             <ul class="order-list" id="order-list">
                 <li class="order-item" style="justify-content:center; color:#999;">Loading...</li>
             </ul>
@@ -86,56 +95,68 @@
         }
 
         // ===== DATABASE =====
-       const SUPABASE_URL = "https://ukqbbznhnzoooirdnior.supabase.co";
+        const SUPABASE_URL = "https://ukqbbznhnzoooirdnior.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcWJiem5obnpvb29pcmRuaW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMzE1MDIsImV4cCI6MjA4NzcwNzUwMn0.jcx4L_ZlOHfkGHUfelgzW1kLMXZxKSUsHeSN5aVcssg";
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // ===== UI HELPERS =====
         const statusBox = document.getElementById('status-box');
-        
-        function showStatus(message, type) {
-            statusBox.style.display = 'block';
-            statusBox.className = 'status-' + type;
-            statusBox.innerText = message;
-            
-            // Auto hide success messages
-            if(type === 'success') {
-                setTimeout(() => { statusBox.style.display = 'none'; }, 3000);
-            }
+        let isProcessing = false;
+
+        function showStatus(message, type) { 
+            statusBox.style.display = 'block'; 
+            statusBox.className = 'status-'+type; 
+            statusBox.innerText = message; 
+            if(type==='success' || type==='full') setTimeout(() => { statusBox.style.display = 'none'; }, 3000); 
         }
-        // ===== DASHBOARD (COMPUTED COUNTS) =====
-        // We no longer trust orders.scanned_boxes. We count scans ourselves.
+
+        // ===== DASHBOARD =====
         async function loadDashboard() {
-            // 1. Get Orders
-            const { data: orders, error } = await db.from("orders").select("order_id, total_boxes, status").order("updated_at", { ascending: false }).limit(5);
+            // FIX: Selecting 'total_boxes' to match your DB
+            const { data, error } = await db
+                .from("orders")
+                .select("order_id, total_boxes, scanned_count, status, updated_at")
+                .order("updated_at", { ascending: false })
+                .limit(5);
+
             const list = document.getElementById('order-list');
             
-            if (error || !orders) { list.innerHTML = '<li class="order-item" style="color:var(--danger);">DB Error</li>'; return; }
-            
+            if (error) { 
+                console.error("Dashboard Load Error:", error);
+                list.innerHTML = '<li class="order-item" style="color:var(--danger);">Failed to load orders</li>'; 
+                return; 
+            }
+            if (!data || data.length === 0) {
+                list.innerHTML = '<li class="order-item" style="color:#999;">No orders found</li>';
+                return;
+            }
+
             list.innerHTML = '';
-            
-            // 2. For each order, count scans
-            for (const o of orders) {
-                // Count actual scans in 'scans' table
-                const { count } = await db.from("scans").select("*", { count: "exact", head: true }).eq("order_id", o.order_id);
-                
-                const currentCount = count || 0;
+            data.forEach(o => {
+                const count = o.scanned_count || 0;
+                // FIX: Using total_boxes
                 const total = o.total_boxes || 0;
-                const percent = total > 0 ? Math.min(100, (currentCount/total)*100) : 0;
+                const percent = total > 0 ? Math.min(100, (count/total)*100) : 0;
+                
+                let statusClass = 'status-pending';
+                let statusText = o.status || 'Pending';
+                if (statusText === 'Partial') statusClass = 'status-partial';
+                if (statusText === 'Completed') statusClass = 'status-completed';
                 
                 const li = document.createElement('li');
                 li.className = 'order-item';
                 li.innerHTML = `
-                    <div style="flex:1">
+                    <div class="order-info">
                         <div class="order-id">${o.order_id}</div>
+                        <span class="order-status ${statusClass}">${statusText}</span>
                         <div class="progress-bar"><div class="progress-fill" style="width: ${percent}%"></div></div>
                     </div>
-                    <div style="text-align:right">
-                        <b style="font-size:1.1rem">${currentCount}/${total}</b>
+                    <div style="text-align:right; font-weight:800;">
+                        <span style="font-size:1.2rem; color:${statusText === 'Completed' ? 'var(--success)' : '#333'}">${count}</span>
+                        <span style="color:#999;">/${total}</span>
                     </div>
                 `;
                 list.appendChild(li);
-            }
+            });
         }
 
         // ===== SCANNER =====
@@ -145,31 +166,40 @@
         const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 300, height: 200 } });
         scanner.render(onScanSuccess);
 
-        // ===== CORE LOGIC (SOURCE OF TRUTH) =====
+        // ===== CORE LOGIC =====
         async function processScan(code) {
             // 1. Validate Format
             const parts = code.split("-");
             if (parts.length < 2) { playSound('error'); showStatus("Invalid Format", "error"); return; }
             const orderId = parts[0];
 
-            // 2. FETCH ORDER LIMIT
-            const { data: order, error } = await db.from("orders").select("total_boxes").eq("order_id", orderId).single();
-            
-            if (error || !order) { playSound('error'); showStatus(`Order ${orderId} not found.`, "error"); return; }
-            if (!order.total_boxes || order.total_boxes === 0) { playSound('error'); showStatus(`Config Error: Total boxes is 0.`, "error"); return; }
+            // 2. FETCH ORDER
+            // FIX: Selecting 'total_boxes'
+            const { data: order, error: fetchError } = await db
+                .from("orders")
+                .select("id, total_boxes, scanned_count")
+                .eq("order_id", orderId)
+                .single();
 
-            // 3. COMPUTE CURRENT COUNT (TRUTH)
-            // We count existing scans for this order right now.
-            const { count } = await db.from("scans").select("*", { count: "exact", head: true }).eq("order_id", orderId);
-            
-            // 4. CHECK LIMIT
-            if (count >= order.total_boxes) {
+            if (fetchError || !order) { 
+                console.error(fetchError);
+                playSound('error'); 
+                showStatus(`Order ${orderId} not found.`, "error"); 
+                return; 
+            }
+
+            // FIX: Using total_boxes
+            const totalLimit = order.total_boxes || 0;
+            const currentCount = order.scanned_count || 0;
+
+            // 3. CHECK LIMIT
+            if (currentCount >= totalLimit) {
                 playSound('duplicate');
-                showStatus(`Order Full! (${count}/${order.total_boxes})`, "full");
+                showStatus(`Order Full! (${totalLimit}/${totalLimit})`, "full");
                 return;
             }
 
-            // 5. CHECK DUPLICATE BOX
+            // 4. CHECK DUPLICATE
             const { data: existing } = await db.from("scans").select("id").eq("box_code", code);
             if (existing && existing.length > 0) {
                 playSound('duplicate');
@@ -177,27 +207,51 @@
                 return;
             }
 
-            // 6. INSERT SCAN (The only write operation)
+            // 5. INSERT SCAN
             const { error: insertError } = await db.from("scans").insert([{ order_id: orderId, box_code: code }]);
-            
             if (insertError) { 
                 console.error(insertError);
                 playSound('error'); 
-                showStatus("Database Save Failed", "error"); 
+                showStatus("Failed to save scan.", "error"); 
                 return; 
             }
 
-            // Success
-            playSound('success');
-            showStatus(`Success! Box ${count + 1}/${order.total_boxes}`, "success");
+            // 6. CALCULATE NEW STATE
+            const newCount = currentCount + 1;
+            let newStatus = "Pending";
             
-            // Refresh UI
+            if (newCount === totalLimit) {
+                newStatus = "Completed";
+            } else if (newCount > 0 && newCount < totalLimit) {
+                newStatus = "Partial";
+            }
+
+            // 7. UPDATE ORDER
+            const { error: updateError } = await db
+                .from("orders")
+                .update({ 
+                    scanned_count: newCount, 
+                    status: newStatus,
+                    updated_at: new Date().toISOString()
+                })
+                .eq("id", order.id);
+
+            if (updateError) { 
+                console.error("Update Error:", updateError);
+                playSound('error'); 
+                showStatus("Scan saved but count failed!", "error"); 
+                return; 
+            }
+
+            // 8. SUCCESS
+            playSound('success');
+            showStatus(`Success! Box ${newCount}/${totalLimit}`, "success");
             loadDashboard();
         }
 
+        // Initialize
         loadDashboard();
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
     </script>
 </body>
 </html>
-
