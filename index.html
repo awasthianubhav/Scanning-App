@@ -78,31 +78,59 @@
             gap: 10px;
         }
 
-        /* ===== SCANNER UI FIXES ===== */
+        /* ===== FIX: CAMERA SIZE & SHAPE ===== */
         #reader {
             width: 100%;
-            /* Constrain height so it doesn't fill screen */
-            max-height: 350px; 
+            /* Force a shorter, landscape-style height */
+            height: 280px; 
+            position: relative;
             border-radius: 0 0 15px 15px;
             overflow: hidden;
+            background: #000;
         }
 
-        /* Hide the "Scan from File" or extra buttons */
+        /* Force the video to fill the box nicely (Crop instead of stretch) */
+        #reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important; 
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* Center the scan region (the square focus box) */
+        #reader__scan_region {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Hide unnecessary buttons */
         #reader__dashboard_section_csr, 
         #reader__dashboard_section_swaplink,
-        #reader__camera_permission_button {
+        #reader__camera_permission_button,
+        #reader__dashboard {
             display: none !important;
         }
-
-        /* Clean up the scanner start button */
+        
+        /* Show ONLY the 'Start Scanning' button initially if camera is off */
+        /* This is a hack to show the start button but hide the rest of the clutter */
         #reader button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: var(--primary) !important;
             color: white !important;
             border: none !important;
-            padding: 12px !important;
-            border-radius: 0 !important; /* Flat bottom for card */
-            width: 100% !important;
+            padding: 12px 24px !important;
+            border-radius: 8px !important;
             font-size: 1rem !important;
+            width: auto !important;
+            cursor: pointer;
         }
 
         /* Status Box */
@@ -181,7 +209,6 @@
             const now = audioCtx.currentTime;
 
             if (type === 'success') {
-                // Pleasant Rising Tone
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(523.25, now); 
                 osc.frequency.linearRampToValueAtTime(783.99, now + 0.2);
@@ -190,7 +217,6 @@
                 osc.start(now); osc.stop(now + 0.4);
             } 
             else if (type === 'duplicate') {
-                // Ting-Tong
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(880, now); 
                 osc.frequency.setValueAtTime(587.33, now + 0.15); 
@@ -199,7 +225,6 @@
                 osc.start(now); osc.stop(now + 0.4);
             } 
             else if (type === 'error') {
-                // Harsh & Loud
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(150, now);
                 osc.frequency.linearRampToValueAtTime(100, now + 0.3);
@@ -224,6 +249,7 @@
             statusBox.style.animation = null;
             statusBox.className = 'status-' + type;
             statusBox.innerText = message;
+            // Auto hide success after 3 seconds
             if(type === 'success') setTimeout(() => { statusBox.style.display = 'none'; }, 3000);
         }
 
@@ -268,19 +294,18 @@
             isProcessing = true;     // Lock
             
             processScan(text).finally(() => {
-                // Unlock after 1.5 seconds
-                setTimeout(() => { isProcessing = false; }, 1500);
+                // FIX: Increased to 2.0 seconds so it's not too fast
+                setTimeout(() => { isProcessing = false; }, 2000);
             });
         }
 
-        // Config: Only camera, no file scan
+        // Config: Camera only
         const scanner = new Html5QrcodeScanner(
             "reader", 
             { 
                 fps: 10, 
                 qrbox: { width: 250, height: 150 }, 
                 aspectRatio: 1.777778,
-                // This tries to hide the "Scan from File" link automatically
                 supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA] 
             }
         );
