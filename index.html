@@ -234,6 +234,12 @@
         
         function showStatus(message, type) {
             statusBox.style.display = 'block';
+            
+            // This forces the animation to restart so the visual change is obvious
+            statusBox.style.animation = 'none';
+            statusBox.offsetHeight; /* trigger reflow */
+            statusBox.style.animation = null;
+
             statusBox.className = 'status-' + type;
             statusBox.innerText = message;
             
