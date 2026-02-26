@@ -86,15 +86,23 @@
         }
 
         // ===== DATABASE =====
-        const SUPABASE_URL = "https://ukqbbznhnzoooirdnior.supabase.co";
+       const SUPABASE_URL = "https://ukqbbznhnzoooirdnior.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcWJiem5obnpvb29pcmRuaW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMzE1MDIsImV4cCI6MjA4NzcwNzUwMn0.jcx4L_ZlOHfkGHUfelgzW1kLMXZxKSUsHeSN5aVcssg";
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // ===== UI HELPERS =====
         const statusBox = document.getElementById('status-box');
-        let isProcessing = false;
-
-        function showStatus(message, type) { statusBox.style.display = 'block'; statusBox.className = 'status-'+type; statusBox.innerText = message; if(type==='success' || type==='full') setTimeout(() => { statusBox.style.display = 'none'; }, 3000); }
-
+        
+        function showStatus(message, type) {
+            statusBox.style.display = 'block';
+            statusBox.className = 'status-' + type;
+            statusBox.innerText = message;
+            
+            // Auto hide success messages
+            if(type === 'success') {
+                setTimeout(() => { statusBox.style.display = 'none'; }, 3000);
+            }
+        }
         // ===== DASHBOARD (COMPUTED COUNTS) =====
         // We no longer trust orders.scanned_boxes. We count scans ourselves.
         async function loadDashboard() {
@@ -192,3 +200,4 @@
     </script>
 </body>
 </html>
+
