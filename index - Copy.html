@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1a237e" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TWF Dispatch">
+    <link rel="manifest" href="manifest.json">
+    
+    <title>TWF Flours Dispatch</title>
+    
+    <!-- Libraries -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    
+    <style>
+        :root {
+            --primary: #1a237e; /* Deep Blue */
+            --accent: #ffab00;  /* Amber */
+            --bg: #f5f5f5;
+            --success: #2e7d32;
+            --danger: #c62828;
+            --text: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* App Header */
+        .app-header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .app-header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .app-header p {
+            margin: 5px 0 0;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        /* Main Container */
+        .container {
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+            padding-bottom: 100px; /* Space for bottom nav */
+        }
+
+        /* Scanner Card */
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            font-weight: bold;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #reader {
+            width: 100%;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        /* Force scanner region shape */
+        #reader__scan_region {
+            background: white;
+        }
+        
+        #reader__dashboard {
+            padding: 10px !important;
+        }
+        
+        #reader button, .btn {
+            background: var(--primary) !important;
+            color: white !important;
+            border: none !important;
+            padding: 12px 24px !important;
+            border-radius: 8px !important;
+            font-size: 1rem !important;
+            width: auto !important;
+            cursor: pointer;
+        }
+
+        /* Status Box */
+        #status-box {
+            padding: 20px;
+            text-align: center;
+            display: none;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            animation: fadeIn 0.3s;
+        }
+
+        .status-success { background: #e8f5e9; color: var(--success); border: 1px solid var(--success); }
+        .status-duplicate { background: #fff3e0; color: #e65100; border: 1px solid #e65100; }
+        .status-error { background: #ffebee; color: var(--danger); border: 1px solid var(--danger); }
+
+        /* Dashboard List */
+        .order-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .order-item:last-child { border-bottom: none; }
+
+        .order-id { font-weight: bold; font-size: 1rem; }
+        
+        .progress-container { width: 100%; margin-top: 5px; }
+        
+        .progress-bar {
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.3s;
+        }
+
+        .meta-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <h1>TWF Flours</h1>
+        <p>Dispatch Scanner</p>
+    </header>
+
+    <div class="container">
+        
+        <!-- Status Message -->
+        <div id="status-box"></div>
+
+        <!-- Scanner Section -->
+        <div class="card">
+            <div class="card-header">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Scan Box QR
+            </div>
+            <div id="reader"></div>
+        </div>
+
+        <!-- Recent Orders Section -->
+        <div class="card">
+            <div class="card-header">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                Recent Orders
+            </div>
+            <ul class="order-list" id="order-list">
+                <!-- Populated by JS -->
+                <li class="order-item" style="justify-content:center; color:#999;">Loading...</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <script>
+        // ===== AUDIO EFFECTS (Base64 Embedded) =====
+        // We embed sounds so no external files are needed
+        const SOUNDS = {
+            success: new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2LkY2DgH18foOEhIWAfnx7e3x+gIKEhYaFg4B+fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8foGDhIWFhYB9fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8foGDhIWFhYB9fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8fn+AgoSFhIWAfnx7e3x+f4CChIWEhYB+fHt7fH5/gIKEhYSFgH58e3t8fn+AgoSFhIWAfnx7e3x+f4CChIWEhYB+fHt7fH5/gIKEhYSFgH58e3t8fn+Ag4SFhIWBfXx7e3x+f4GDhIWEhYF9fHt7fH5/gYOEhYSFgX18e3t8fn+Bg4SFhIWBfXx7e3x+f4GDhIWEhYF9fHt7fH5/gYOEhYSFgX18e3t8fn+Bg4SFhIWBfXx7e3x+f4GDhIWEhYF9fHt7fH5/gYOEhYSFgX18e3t8fn+Bg4SFhIWBfXx7e3t8foGDhIWFhYB9fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8foGDhIWFhYB9fHt7fH6Bg4SFhYWAfXx7e3x+gYOEhYWFgH18e3t8foGDhIWFhYB9fHt7fH6Ag4SFhIWAfnx7e3x+gIOEhYSFgH58e3t8fn+AgoSFhIWAfnx7e3x+f4CChIWEhYB+fHt7fH5/gIKEhYSFgH58e3t8fn+AgoSFhIWAfnx7e3x+f4CChIWEhYB+fHt7fH5/gIKEhYSEgH58e3t8fn+AgoSFhISAfnx7e3x+f4CCg4SEg4B+fHt7fH5/gIKDhISDgH58e3t8fn+AgoOEhIOAfnx7e3x+f4CCg4SEg4B+fHt7fH5/gIKDhISDgH58e3t8fn+AgoOEhIOAfnx7e3x+f4CCg4SEg4B+fHt7fH5/gIKDhISDgH58e3t8fX+Ag4OEg4OAfXx7e3x9f4CDg4SDg4B9fHt7fH1/gIODhIODgH18e3t8fX+Ag4OEg4OAfXx7e3x9f4CDg4SDg4B9fHt7fH1/gIODhIODgH18e3t8fX+Ag4OEg4OAfXx7e3x9f4CDg4SDg4B9fHt7fH1/gIODhIODgH18e3t8fX+Ag4OEg4OAfXx7e3x9f4CDg4SDg4B9fHt7fH1/gA=="),
+            duplicate: new Audio("data:audio/wav;base64,UklGRl4FAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YToFAACAgICAgICAgICAgICAgICAgICAgHx8fHx8fHx8fHx8fHx8fHx8fICAgICAgICAgICAgICAgICAgICAfHx8fHx8fHx8fHx8fHx8fHx8gICAgICAgICAgICAgICAgICAgIB8fHx8fHx8fHx8fHx8fHx8fHyAgICAgICAgICAgICAgICAgICAgHx8fHx8fHx8fHx8fHx8fHx8fICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=="),
+            error: new Audio("data:audio/wav;base64,UklGRl4FAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YToFAACAgICAgICAgICAgICAgICAgICAgIB/f39/f39/f39/f39/f39/f3+AgICAgICAgICAgICAgICAgICAgIB/f39/f39/f39/f39/f39/f3+AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAf39/f39/f39/f39/f39/f39/gICAgICAgICAgICAgICAgICAgICAf39/f39/f39/f39/f39/f39/gICAgICAgICAgICAgICAgICAgICAgH9/f39/f39/f39/f39/f39/f4CAgICAgICAgICAgICAgICAgICAgIB/f39/f39/f39/f39/f39/f3+AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==")
+        };
+
+        function playSound(type) {
+            if (SOUNDS[type]) {
+                SOUNDS[type].currentTime = 0;
+                SOUNDS[type].play().catch(e => console.log("Audio wait", e));
+            }
+        }
+
+        // ===== SUPABASE CONNECTION =====
+        const SUPABASE_URL = "https://ukqbbznhnzoooirdnior.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcWJiem5obnpvb29pcmRuaW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMzE1MDIsImV4cCI6MjA4NzcwNzUwMn0.jcx4L_ZlOHfkGHUfelgzW1kLMXZxKSUsHeSN5aVcssg";
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ===== UI HELPERS =====
+        const statusBox = document.getElementById('status-box');
+        
+        function showStatus(message, type) {
+            statusBox.style.display = 'block';
+            statusBox.className = 'status-' + type;
+            statusBox.innerText = message;
+            
+            // Auto hide success messages
+            if(type === 'success') {
+                setTimeout(() => { statusBox.style.display = 'none'; }, 3000);
+            }
+        }
+
+        // ===== DASHBOARD LOADER =====
+        async function loadDashboard() {
+            const { data, error } = await db
+                .from("orders")
+                .select("order_id, total_boxes, scanned_boxes, status")
+                .order("updated_at", { ascending: false }) // Assumes you have a timestamp
+                .limit(5);
+
+            const list = document.getElementById('order-list');
+            
+            if (error || !data) {
+                list.innerHTML = '<li class="order-item" style="justify-content:center; color:#999;">Error loading data</li>';
+                return;
+            }
+
+            if(data.length === 0) {
+                list.innerHTML = '<li class="order-item" style="justify-content:center; color:#999;">No orders found</li>';
+                return;
+            }
+
+            list.innerHTML = '';
+            data.forEach(order => {
+                const count = order.scanned_boxes || 0;
+                const total = order.total_boxes || 1;
+                const percent = Math.round((count / total) * 100);
+                
+                const li = document.createElement('li');
+                li.className = 'order-item';
+                li.innerHTML = `
+                    <div style="flex:1">
+                        <div class="order-id">${order.order_id}</div>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align:right">
+                        <div style="font-weight:bold; color:${order.status === 'completed' ? 'var(--success)' : 'var(--text)'}">
+                            ${count} / ${total}
+                        </div>
+                        <div class="meta-text">${order.status.toUpperCase()}</div>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // ===== SCANNER SETUP =====
+        function onScanSuccess(text) {
+            processScan(text);
+        }
+
+        const scanner = new Html5QrcodeScanner(
+            "reader",
+            { 
+                fps: 10, 
+                qrbox: { width: 280, height: 180 }, // Rectangular shape
+                aspectRatio: 1.777778 
+            }
+        );
+
+        scanner.render(onScanSuccess);
+
+        // ===== MAIN LOGIC =====
+        async function processScan(code) {
+            // QR must be ORD001-1 format
+            const parts = code.split("-");
+            if (parts.length < 2) {
+                playSound('error');
+                showStatus("Invalid Code Format", "error");
+                return;
+            }
+
+            const orderId = parts[0];
+
+            // 1. Check if Order Exists (New Feature)
+            const { data: orderCheck, error: orderError } = await db
+                .from("orders")
+                .select("order_id")
+                .eq("order_id", orderId)
+                .single();
+
+            if (!orderCheck) {
+                playSound('error');
+                showStatus(`Order ${orderId} not found!`, "error");
+                return;
+            }
+
+            // 2. Duplicate Check
+            const { data: existing } = await db
+                .from("scans")
+                .select("*")
+                .eq("box_code", code);
+
+            if (existing.length) {
+                playSound('duplicate');
+                showStatus("Duplicate Scan Detected", "duplicate");
+                return;
+            }
+
+            // 3. Insert Scan
+            const { error: insertError } = await db.from("scans").insert([
+                { order_id: orderId, box_code: code }
+            ]);
+
+            if (insertError) {
+                playSound('error');
+                showStatus("Database Error", "error");
+                return;
+            }
+
+            // 4. Count scans
+            const { count } = await db
+                .from("scans")
+                .select("*", { count: "exact", head: true })
+                .eq("order_id", orderId);
+
+            // 5. Get total boxes & Update Status
+            const { data: order } = await db
+                .from("orders")
+                .select("total_boxes")
+                .eq("order_id", orderId)
+                .single();
+
+            let status = "pending";
+            let total = order ? order.total_boxes : 0;
+
+            if (count === total) status = "completed";
+
+            await db
+                .from("orders")
+                .update({
+                    scanned_boxes: count,
+                    status: status
+                })
+                .eq("order_id", orderId);
+
+            // Success Feedback
+            playSound('success');
+            showStatus(`Success! Box ${count}/${total} scanned.`, "success");
+            
+            // Refresh Dashboard
+            loadDashboard();
+        }
+
+        // Initialize Dashboard on Load
+        loadDashboard();
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+        }
+    </script>
+</body>
+</html>
