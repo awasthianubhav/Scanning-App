@@ -10,11 +10,8 @@
     
     <title>TWF Flours Dispatch</title>
 
-    <!-- 1. INCLUDE ZXING LIBRARY -->
-    <script type="module">
-      import { BrowserMultiFormatReader } from 'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/esm/index.js';
-      window.BrowserMultiFormatReader = BrowserMultiFormatReader;
-    </script>
+    <!-- 1. LOAD ZXING LIBRARY (UMD Version - Reliable) -->
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     
@@ -70,7 +67,7 @@
             gap: 10px;
         }
 
-        /* 2. NEW SCANNER CONTAINER STYLES */
+        /* Scanner Container */
         #reader-container {
             position: relative;
             width: 100%;
@@ -92,16 +89,15 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 90%; /* Wide for barcodes */
+            width: 90%; 
             height: 100px;
             border: 2px solid rgba(255, 255, 255, 0.8);
             border-radius: 10px;
-            /* Darken everything outside the box */
             box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.4);
-            pointer-events: none; /* Let clicks pass through to video if needed */
+            pointer-events: none;
         }
         
-        /* Small "Start" button overlay if camera not active */
+        /* Start button overlay */
         #start-btn {
             position: absolute;
             top: 50%; left: 50%;
@@ -157,11 +153,10 @@
                 Scan Barcode
             </div>
             
-            <!-- NEW VIDEO CONTAINER -->
             <div id="reader-container">
                 <video id="video" playsinline></video>
                 <div id="scan-overlay"></div>
-                <button id="start-btn" style="display:none;">Start Camera</button>
+                <button id="start-btn">Start Camera</button>
             </div>
             
         </div>
@@ -270,21 +265,19 @@
             fill.style.width = percent + "%";
         }
 
-        // ===== MAIN LOGIC (Shared by both Manual and Auto Scan) =====
+        // ===== MAIN LOGIC =====
         let isProcessing = false;
 
         async function processScan(code) {
             if(isProcessing) return;
             isProcessing = true;
-
-            // Simple lock visual feedback (optional)
-            console.log("Scanned:", code);
+            console.log("Detected:", code);
 
             const parts = code.split("-");
             if (parts.length < 2) { 
                 playSound('error'); 
-                showStatus("Invalid Format", "error"); 
-                isProcessing = false; // Release lock immediately
+                showStatus("Invalid Format: " + code, "error"); 
+                setTimeout(() => isProcessing = false, 1500);
                 return; 
             }
 
@@ -295,7 +288,7 @@
             if (!orderCheck) { 
                 playSound('error'); 
                 showStatus(`Order ${orderId} not found`, "error"); 
-                setTimeout(() => isProcessing = false, 1500); // Wait before unlocking
+                setTimeout(() => isProcessing = false, 1500);
                 return; 
             }
 
@@ -305,7 +298,7 @@
                 playSound('duplicate'); 
                 showStatus("Duplicate Detected", "duplicate"); 
                 updateCurrentOrderDisplay(orderId); 
-                setTimeout(() => isProcessing = false, 1500); // Wait before unlocking
+                setTimeout(() => isProcessing = false, 1500);
                 return; 
             }
 
@@ -318,7 +311,7 @@
                 return; 
             }
 
-            // 4. Count scans & Update Order
+            // 4. Count & Update
             const { count } = await db.from("scans").select("*", { count: "exact", head: true }).eq("order_id", orderId);
             const { data: order } = await db.from("orders").select("total_boxes").eq("order_id", orderId).single();
             
@@ -333,8 +326,6 @@
             showStatus(`Success! Box ${count}/${total}`, "success");
             
             updateCurrentOrderDisplay(orderId);
-
-            // Release lock after 1 second
             setTimeout(() => { isProcessing = false; }, 1000);
         }
 
@@ -342,61 +333,54 @@
         window.addEventListener('load', () => {
             const startBtn = document.getElementById('start-btn');
             
-            // Check if library loaded
-            if (!window.BrowserMultiFormatReader) {
-                alert("Scanner library failed to load. Check internet connection.");
+            // Check if ZXing loaded correctly
+            if (!window.ZXing || !window.ZXing.BrowserMultiFormatReader) {
+                alert("Scanner library failed to load. Please refresh or check internet.");
+                console.error("ZXing not found on window.");
                 return;
             }
 
-            const codeReader = new window.BrowserMultiFormatReader();
+            const codeReader = new ZXing.BrowserMultiFormatReader();
             
-            // Try to start camera immediately
-            startScanning(codeReader);
+            // Automatically start camera
+            startCamera(codeReader);
 
-            // If user clicks video (permission issues), show button
-            startBtn.onclick = () => {
-                startScanning(codeReader);
-            };
+            // Fallback button
+            startBtn.onclick = () => startCamera(codeReader);
         });
 
-        function startScanning(codeReader) {
+        function startCamera(codeReader) {
             const videoElement = document.getElementById('video');
             const startBtn = document.getElementById('start-btn');
 
             codeReader.listVideoInputDevices()
                 .then(videoInputDevices => {
-                    if (videoInputDevices.length === 0) {
-                        alert("No camera found!");
+                    if (!videoInputDevices.length) {
+                        alert("No camera found on this device.");
                         return;
                     }
                     
-                    // Hide button once camera starts
                     startBtn.style.display = 'none';
 
-                    // Try to find the back camera
-                    let selectedDeviceId = videoInputDevices[0].deviceId;
-                    videoInputDevices.forEach(device => {
-                        if (device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear')) {
-                            selectedDeviceId = device.deviceId;
+                    // Prefer Back Camera
+                    let deviceId = videoInputDevices[0].deviceId;
+                    videoInputDevices.forEach(d => {
+                        if (d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear')) {
+                            deviceId = d.deviceId;
                         }
                     });
 
-                    console.log(`Starting camera: ${selectedDeviceId}`);
+                    console.log("Starting camera:", deviceId);
 
-                    codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
+                    codeReader.decodeFromVideoDevice(deviceId, videoElement, (result, err) => {
                         if (result) {
                             processScan(result.getText());
-                        }
-                        if (err && err.name !== 'NotFoundException') {
-                            // Only log serious errors
-                            console.warn(err);
                         }
                     });
                 })
                 .catch(err => {
                     console.error(err);
-                    // Show start button if permission denied or error
-                    startBtn.innerText = "Tap to Enable Camera";
+                    startBtn.innerText = "Tap to Allow Camera";
                     startBtn.style.display = 'block';
                 });
         }
