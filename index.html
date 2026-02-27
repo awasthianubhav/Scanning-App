@@ -259,8 +259,8 @@
         async function loadRecentScans() {
             const { data, error } = await db
                 .from("scans")
-                .select("order_id, box_code, created_at")
-                .order("created_at", { ascending: false })
+                .select("order_id, box_code, scanned_at")
+                .order("scanned_at", { ascending: false })
                 .limit(5); // last 5 scans
 
             const list = document.getElementById('order-list');
@@ -343,3 +343,4 @@
     </script>
 </body>
 </html>
+
