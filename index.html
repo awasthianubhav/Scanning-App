@@ -10,7 +10,7 @@
     
     <title>TWF Flours Dispatch</title>
 
-    <!-- 1. LOAD ZXING LIBRARY (UMD Version - Reliable) -->
+    <!-- 1. LOAD ZXING LIBRARY (UMD Version) -->
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
@@ -90,10 +90,10 @@
             left: 50%;
             transform: translate(-50%, -50%);
             width: 90%; 
-            height: 100px;
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            border-radius: 10px;
-            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.4);
+            height: 80px; /* Slightly shorter for barcodes */
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 5px;
+            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.5);
             pointer-events: none;
         }
         
@@ -329,23 +329,18 @@
             setTimeout(() => { isProcessing = false; }, 1000);
         }
 
-        // ===== ZXING SCANNER SETUP =====
+        // ===== ZXING SCANNER SETUP (OPTIMIZED) =====
         window.addEventListener('load', () => {
             const startBtn = document.getElementById('start-btn');
             
-            // Check if ZXing loaded correctly
             if (!window.ZXing || !window.ZXing.BrowserMultiFormatReader) {
-                alert("Scanner library failed to load. Please refresh or check internet.");
-                console.error("ZXing not found on window.");
+                alert("Scanner library failed to load. Refresh page.");
                 return;
             }
 
             const codeReader = new ZXing.BrowserMultiFormatReader();
             
-            // Automatically start camera
             startCamera(codeReader);
-
-            // Fallback button
             startBtn.onclick = () => startCamera(codeReader);
         });
 
@@ -353,36 +348,39 @@
             const videoElement = document.getElementById('video');
             const startBtn = document.getElementById('start-btn');
 
-            codeReader.listVideoInputDevices()
-                .then(videoInputDevices => {
-                    if (!videoInputDevices.length) {
-                        alert("No camera found on this device.");
-                        return;
-                    }
-                    
-                    startBtn.style.display = 'none';
+            // OPTIMIZED CONSTRAINTS:
+            // 1. Enable Torch (Flash) if available
+            // 2. Force Continuous Focus (No tapping to focus)
+            // 3. High Resolution for small barcodes
+            const constraints = {
+                video: {
+                    facingMode: "environment",
+                    width: { ideal: 1920 }, // HD Resolution
+                    height: { ideal: 1080 },
+                    advanced: [ 
+                        { focusMode: "continuous" }, // Key for speed
+                        { torch: false } 
+                    ]
+                }
+            };
 
-                    // Prefer Back Camera
-                    let deviceId = videoInputDevices[0].deviceId;
-                    videoInputDevices.forEach(d => {
-                        if (d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear')) {
-                            deviceId = d.deviceId;
-                        }
-                    });
-
-                    console.log("Starting camera:", deviceId);
-
-                    codeReader.decodeFromVideoDevice(deviceId, videoElement, (result, err) => {
-                        if (result) {
-                            processScan(result.getText());
-                        }
-                    });
-                })
-                .catch(err => {
-                    console.error(err);
-                    startBtn.innerText = "Tap to Allow Camera";
-                    startBtn.style.display = 'block';
-                });
+            codeReader.decodeFromConstraints(constraints, videoElement, (result, err) => {
+                if (result) {
+                    processScan(result.getText());
+                }
+                if (err && !(err instanceof ZXing.NotFoundException)) {
+                    console.warn(err);
+                }
+            })
+            .then(() => {
+                startBtn.style.display = 'none';
+                console.log("Camera started with optimized settings.");
+            })
+            .catch(err => {
+                console.error("Camera Error:", err);
+                startBtn.innerText = "Tap to Allow Camera";
+                startBtn.style.display = 'block';
+            });
         }
     </script>
 </body>
