@@ -94,13 +94,12 @@
             top: 0; left: 0;
         }
 
-        /* The Scan Box Overlay (The white lines) */
+        /* The Scan Box Overlay */
         #reader__scan_region img {
             position: absolute !important;
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important;
-            /* Darken area around scan box */
             box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.3); 
         }
         
@@ -151,7 +150,7 @@
         <div class="card">
             <div class="card-header">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Scan QR or Barcode
+                Scan Barcode
             </div>
             <div id="reader"></div>
         </div>
@@ -267,26 +266,34 @@
             if(isProcessing) return;
             isProcessing = true;
             processScan(text).finally(() => {
-                setTimeout(() => { isProcessing = false; }, 2000);
+                // REDUCED TO 1 SECOND FOR RAPID SCANNING
+                setTimeout(() => { isProcessing = false; }, 1000);
             });
         }
 
-        // CONFIGURATION: ADDED BARCODE SUPPORT
+        // ===== OPTIMIZED CONFIG FOR BARCODES =====
+        function onScanFailure(error) {
+            // Ignore errors silently (this happens when no code is found)
+        }
+
         const scanner = new Html5QrcodeScanner("reader", { 
             fps: 10, 
-            // Increased width to 350 to fit wide barcodes
-            qrbox: { width: 350, height: 150 }, 
+            // Dynamic Wide Box: Uses function to make box 90% of screen width
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+                let minEdge = viewfinderWidth * 0.9; 
+                return { width: minEdge, height: 150 };
+            },
             aspectRatio: 1.777778,
             supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-            // This enables scanning standard linear barcodes (like Code 128)
+            // Focused on 1D Barcodes for Speed
             formatsToSupport: [
-                Html5QrcodeSupportedFormats.QR_CODE,
-                Html5QrcodeSupportedFormats.CODE_128, // Standard Logistics Barcode
+                Html5QrcodeSupportedFormats.CODE_128, // Most common logistics
                 Html5QrcodeSupportedFormats.CODE_39,
-                Html5QrcodeSupportedFormats.EAN_13
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.QR_CODE
             ]
         });
-        scanner.render(onScanSuccess);
+        scanner.render(onScanSuccess, onScanFailure);
 
         // ===== MAIN LOGIC =====
         async function processScan(code) {
