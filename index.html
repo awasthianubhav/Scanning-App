@@ -9,8 +9,13 @@
     <link rel="manifest" href="manifest.json">
     
     <title>TWF Flours Dispatch</title>
+
+    <!-- 1. INCLUDE ZXING LIBRARY -->
+    <script type="module">
+      import { BrowserMultiFormatReader } from 'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/esm/index.js';
+      window.BrowserMultiFormatReader = BrowserMultiFormatReader;
+    </script>
     
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     
     <style>
@@ -65,51 +70,50 @@
             gap: 10px;
         }
 
-        /* Scanner Container */
-        #reader {
-            width: 100%;
-            height: 300px; 
+        /* 2. NEW SCANNER CONTAINER STYLES */
+        #reader-container {
             position: relative;
+            width: 100%;
+            height: 300px;
             background: #000;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
-        /* Center the scan box visual */
-        #reader__scan_region {
-            width: 100% !important;
-            height: 100% !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
-        
-        #reader video {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
+
+        /* Visual Overlay - The "Focus Box" */
+        #scan-overlay {
             position: absolute;
-            top: 0; left: 0;
-        }
-
-        /* The Scan Box Overlay */
-        #reader__scan_region img {
-            position: absolute !important;
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.3); 
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%; /* Wide for barcodes */
+            height: 100px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            /* Darken everything outside the box */
+            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.4);
+            pointer-events: none; /* Let clicks pass through to video if needed */
         }
         
-        #reader__dashboard { display: none !important; }
-        #reader button {
-            position: absolute; top: 50%; left: 50%;
+        /* Small "Start" button overlay if camera not active */
+        #start-btn {
+            position: absolute;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            background: var(--primary) !important; color: white !important;
-            border: none !important; padding: 12px 24px !important;
-            border-radius: 8px !important; z-index: 20;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            z-index: 10;
         }
 
         /* Status Messages */
@@ -152,7 +156,14 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                 Scan Barcode
             </div>
-            <div id="reader"></div>
+            
+            <!-- NEW VIDEO CONTAINER -->
+            <div id="reader-container">
+                <video id="video" playsinline></video>
+                <div id="scan-overlay"></div>
+                <button id="start-btn" style="display:none;">Start Camera</button>
+            </div>
+            
         </div>
 
         <!-- Current Order Status -->
@@ -259,53 +270,34 @@
             fill.style.width = percent + "%";
         }
 
-        // ===== SCANNER =====
+        // ===== MAIN LOGIC (Shared by both Manual and Auto Scan) =====
         let isProcessing = false;
 
-        function onScanSuccess(text) {
+        async function processScan(code) {
             if(isProcessing) return;
             isProcessing = true;
-            processScan(text).finally(() => {
-                // 1 Second Lock for Rapid Scanning
-                setTimeout(() => { isProcessing = false; }, 1000);
-            });
-        }
 
-        function onScanFailure(error) {
-            // Silent fail (no barcode found yet)
-        }
+            // Simple lock visual feedback (optional)
+            console.log("Scanned:", code);
 
-        // ===== OPTIMIZED CONFIG FOR ITF-14 & OTHER BARCODES =====
-        const scanner = new Html5QrcodeScanner("reader", { 
-            fps: 10, 
-            // Dynamic Wide Box: Ensures wide barcodes fit
-            qrbox: function(viewfinderWidth, viewfinderHeight) {
-                let minEdge = viewfinderWidth * 0.9; 
-                return { width: minEdge, height: 150 };
-            },
-            aspectRatio: 1.777778,
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-            // Added ITF for ITF-14 barcodes
-            formatsToSupport: [
-                Html5QrcodeSupportedFormats.ITF,       // <--- ADDED THIS
-                Html5QrcodeSupportedFormats.CODE_128,
-                Html5QrcodeSupportedFormats.CODE_39,
-                Html5QrcodeSupportedFormats.EAN_13,
-                Html5QrcodeSupportedFormats.QR_CODE
-            ]
-        });
-        scanner.render(onScanSuccess, onScanFailure);
-
-        // ===== MAIN LOGIC =====
-        async function processScan(code) {
             const parts = code.split("-");
-            if (parts.length < 2) { playSound('error'); showStatus("Invalid Format", "error"); return; }
+            if (parts.length < 2) { 
+                playSound('error'); 
+                showStatus("Invalid Format", "error"); 
+                isProcessing = false; // Release lock immediately
+                return; 
+            }
 
             const orderId = parts[0];
 
             // 1. Check Order Exists
             const { data: orderCheck } = await db.from("orders").select("order_id").eq("order_id", orderId).single();
-            if (!orderCheck) { playSound('error'); showStatus(`Order ${orderId} not found`, "error"); return; }
+            if (!orderCheck) { 
+                playSound('error'); 
+                showStatus(`Order ${orderId} not found`, "error"); 
+                setTimeout(() => isProcessing = false, 1500); // Wait before unlocking
+                return; 
+            }
 
             // 2. Duplicate Check
             const { data: existing } = await db.from("scans").select("id").eq("box_code", code);
@@ -313,12 +305,18 @@
                 playSound('duplicate'); 
                 showStatus("Duplicate Detected", "duplicate"); 
                 updateCurrentOrderDisplay(orderId); 
+                setTimeout(() => isProcessing = false, 1500); // Wait before unlocking
                 return; 
             }
 
             // 3. Insert Scan
             const { error: insertError } = await db.from("scans").insert([{ order_id: orderId, box_code: code }]);
-            if (insertError) { playSound('error'); showStatus("DB Error", "error"); return; }
+            if (insertError) { 
+                playSound('error'); 
+                showStatus("DB Error", "error"); 
+                setTimeout(() => isProcessing = false, 1500);
+                return; 
+            }
 
             // 4. Count scans & Update Order
             const { count } = await db.from("scans").select("*", { count: "exact", head: true }).eq("order_id", orderId);
@@ -335,6 +333,72 @@
             showStatus(`Success! Box ${count}/${total}`, "success");
             
             updateCurrentOrderDisplay(orderId);
+
+            // Release lock after 1 second
+            setTimeout(() => { isProcessing = false; }, 1000);
+        }
+
+        // ===== ZXING SCANNER SETUP =====
+        window.addEventListener('load', () => {
+            const startBtn = document.getElementById('start-btn');
+            
+            // Check if library loaded
+            if (!window.BrowserMultiFormatReader) {
+                alert("Scanner library failed to load. Check internet connection.");
+                return;
+            }
+
+            const codeReader = new window.BrowserMultiFormatReader();
+            
+            // Try to start camera immediately
+            startScanning(codeReader);
+
+            // If user clicks video (permission issues), show button
+            startBtn.onclick = () => {
+                startScanning(codeReader);
+            };
+        });
+
+        function startScanning(codeReader) {
+            const videoElement = document.getElementById('video');
+            const startBtn = document.getElementById('start-btn');
+
+            codeReader.listVideoInputDevices()
+                .then(videoInputDevices => {
+                    if (videoInputDevices.length === 0) {
+                        alert("No camera found!");
+                        return;
+                    }
+                    
+                    // Hide button once camera starts
+                    startBtn.style.display = 'none';
+
+                    // Try to find the back camera
+                    let selectedDeviceId = videoInputDevices[0].deviceId;
+                    videoInputDevices.forEach(device => {
+                        if (device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear')) {
+                            selectedDeviceId = device.deviceId;
+                        }
+                    });
+
+                    console.log(`Starting camera: ${selectedDeviceId}`);
+
+                    codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
+                        if (result) {
+                            processScan(result.getText());
+                        }
+                        if (err && err.name !== 'NotFoundException') {
+                            // Only log serious errors
+                            console.warn(err);
+                        }
+                    });
+                })
+                .catch(err => {
+                    console.error(err);
+                    // Show start button if permission denied or error
+                    startBtn.innerText = "Tap to Enable Camera";
+                    startBtn.style.display = 'block';
+                });
         }
     </script>
 </body>
