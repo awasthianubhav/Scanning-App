@@ -256,47 +256,36 @@
         }
 
         // ===== NEW: LOAD RECENT SCANS =====
-async function loadLast5rders() {
-    const { data, error } = await db
-        .from("scans")
-        .select("order_id, total_boxes, scanned_boxes")
-        .order("last_scanned_at", { ascending: false })
-        .limit(5);
+        async function loadRecentScans() {
+            const { data, error } = await db
+                .from("scans")
+                .select("order_id, box_code, created_at")
+                .order("created_at", { ascending: false })
+                .limit(5); // last 5 scans
 
-    const list = document.getElementById('order-list');
+            const list = document.getElementById('order-list');
 
-    if (error) {
-        console.log(error);
-        list.innerHTML = '<li style="text-align:center;color:#999;">Error loading data</li>';
-        return;
-    }
+            if (error || !data) {
+                list.innerHTML = '<li class="order-item" style="justify-content:center; color:#999;">Error loading data</li>';
+                return;
+            }
 
-    if (!data || data.length === 0) {
-        list.innerHTML = '<li style="text-align:center;color:#999;">No recent orders</li>';
-        return;
-    }
+            if (data.length === 0) {
+                list.innerHTML = '<li class="order-item" style="justify-content:center; color:#999;">No scans yet</li>';
+                return;
+            }
 
-    list.innerHTML = '';
-    data.forEach(order => {
-        const li = document.createElement('li');
-        li.className = 'order-item';
-        const percent = Math.round((order.scanned_boxes / order.total_boxes) * 100);
-        li.innerHTML = `
-            <div style="flex:1">
-                <div class="order-id">${order.order_id}</div>
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${percent}%"></div>
-                    </div>
-                </div>
-            </div>
-            <div style="text-align:right">
-                <div style="font-weight:bold">${order.scanned_boxes} / ${order.total_boxes}</div>
-            </div>
-        `;
-        list.appendChild(li);
-    });
-}
+            list.innerHTML = '';
+            data.forEach(scan => {
+                const li = document.createElement('li');
+                li.className = 'order-item';
+                li.innerHTML = `
+                    <div class="scan-code">${scan.box_code}</div>
+                    <div class="scan-time">${new Date(scan.created_at).toLocaleTimeString()}</div>
+                `;
+                list.appendChild(li);
+            });
+        }
 
         // ===== SCANNER =====
         let isProcessing = false;
@@ -349,14 +338,8 @@ async function loadLast5rders() {
         }
 
         // Initialize
-         if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
-            .then(() => console.log("Service worker registered"))
-            .catch(err => console.log("Service worker registration failed:", err));
+        loadRecentScans();
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
     </script>
 </body>
 </html>
-
-
-
-
